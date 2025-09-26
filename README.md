@@ -1,5 +1,7 @@
 # MemPack
 
+![MemPack Logo](assets/logo.png)
+
 A portable, fast knowledge pack with two-file ANN memory for semantic search and retrieval.
 
 ## Overview
