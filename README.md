@@ -51,6 +51,69 @@ for hit in hits:
     print()
 ```
 
+### LLM Integration
+
+MemPack provides built-in chat functionality that works with any LLM client:
+
+```python
+from mempack import MemPackRetriever, MemPackChat
+
+# Initialize retriever
+retriever = MemPackRetriever(pack_path="kb.mpack", ann_path="kb.ann")
+
+# Create chat interface
+chat = MemPackChat(
+    retriever=retriever,
+    context_chunks=8,           # Number of chunks to use as context
+    max_context_length=2000,    # Max context length in characters
+)
+
+# Example with OpenAI (or any LLM client)
+import openai
+
+class OpenAIClient:
+    def __init__(self, api_key: str):
+        self.client = openai.OpenAI(api_key=api_key)
+    
+    def chat_completion(self, messages: list) -> str:
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            max_tokens=500
+        )
+        return response.choices[0].message.content
+
+# Use with LLM
+llm_client = OpenAIClient(api_key="your-api-key")
+response = chat.chat(
+    user_input="What is quantum computing?",
+    llm_client=llm_client,
+    system_prompt="You are a helpful assistant that answers questions based on the provided context."
+)
+
+print(response)
+```
+
+**Without LLM (Simple Mode):**
+```python
+# Works without any LLM - uses simple response generation
+response = chat.chat("What is quantum computing?")
+print(response)
+```
+
+**Session Management:**
+```python
+# Start a new session
+chat.start_session(session_id="my_session")
+
+# Chat with conversation history
+response1 = chat.chat("Tell me about quantum computing")
+response2 = chat.chat("What are the applications?")  # Uses previous context
+
+# Export conversation
+chat.export_session("conversation.json")
+```
+
 ### CLI Usage
 
 MemPack provides a command-line interface for building, searching, and managing knowledge packs:
