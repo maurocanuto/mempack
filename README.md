@@ -53,17 +53,63 @@ for hit in hits:
 
 ### CLI Usage
 
+MemPack provides a command-line interface for building, searching, and managing knowledge packs:
+
 ```bash
 # Build from a folder of markdown/text files
-mempack build --src ./notes --out ./kb \
+python3 -m mempack build --src ./examples/notes --out ./kb \
   --chunk-size 300 --chunk-overlap 50 \
   --embed-model all-MiniLM-L6-v2
 
 # Search the knowledge pack
-mempack search --kb ./kb --q "quantum computing" --topk 5
+python3 -m mempack search --kb ./kb --query "quantum computing" --topk 5
+
+# Chat with the knowledge pack (NEW!)
+python3 -m mempack chat --kb ./kb --query "What is quantum computing?" --verbose
 
 # Verify integrity
-mempack verify --kb ./kb
+python3 -m mempack verify --kb ./kb
+
+# Display information about the knowledge pack
+python3 -m mempack info --kb ./kb
+
+# Export chunks to JSON
+python3 -m mempack export --kb ./kb --output chunks.json --format json
+```
+
+#### Available Commands
+
+- **`build`** - Create a knowledge pack from source files
+- **`search`** - Search for relevant chunks
+- **`chat`** - Interactive chat using context retrieval
+- **`verify`** - Check file integrity
+- **`info`** - Display knowledge pack information
+- **`export`** - Export chunks to various formats
+
+#### Alternative Usage Methods
+
+You can also use the CLI in other ways:
+
+```bash
+# Using Python import
+python3 -c "from mempack import cli; cli()" search --kb ./kb --query "AI"
+
+# Using the mempack_cli function
+python3 -c "from mempack import mempack_cli; mempack_cli()" chat --kb ./kb --query "What is AI?"
+```
+
+#### Shell Alias (Optional)
+
+For easier usage, add this to your `~/.bashrc` or `~/.zshrc`:
+
+```bash
+alias mempack='python3 -m mempack'
+```
+
+Then you can use:
+```bash
+mempack --help
+mempack chat --kb ./kb --query "What is quantum computing?"
 ```
 
 ## Two-File Format

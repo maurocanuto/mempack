@@ -12,6 +12,7 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from .builder import MemPackEncoder
+from .chat import MemPackChat
 from .config import MemPackConfig, get_default_config
 from .errors import MemPackError
 from .logging import cli_logger, setup_logger
@@ -128,11 +129,16 @@ def search(
     
     try:
         # Set up paths
-        pack_path = kb / "kb.mpack"
-        ann_path = kb / "kb.ann"
+        if kb.is_dir():
+            pack_path = kb / "kb.mpack"
+            ann_path = kb / "kb.ann"
+        else:
+            # If kb is a file, use it directly
+            pack_path = kb
+            ann_path = kb.with_suffix('.ann')
         
         if not pack_path.exists() or not ann_path.exists():
-            console.print(f"[red]Error: Knowledge pack not found in {kb}[/red]")
+            console.print(f"[red]Error: Knowledge pack not found: {pack_path} or {ann_path}[/red]")
             raise typer.Exit(1)
         
         # Create retriever
@@ -185,11 +191,16 @@ def verify(
     
     try:
         # Set up paths
-        pack_path = kb / "kb.mpack"
-        ann_path = kb / "kb.ann"
+        if kb.is_dir():
+            pack_path = kb / "kb.mpack"
+            ann_path = kb / "kb.ann"
+        else:
+            # If kb is a file, use it directly
+            pack_path = kb
+            ann_path = kb.with_suffix('.ann')
         
         if not pack_path.exists() or not ann_path.exists():
-            console.print(f"[red]Error: Knowledge pack not found in {kb}[/red]")
+            console.print(f"[red]Error: Knowledge pack not found: {pack_path} or {ann_path}[/red]")
             raise typer.Exit(1)
         
         # Create retriever
@@ -233,11 +244,16 @@ def info(
     
     try:
         # Set up paths
-        pack_path = kb / "kb.mpack"
-        ann_path = kb / "kb.ann"
+        if kb.is_dir():
+            pack_path = kb / "kb.mpack"
+            ann_path = kb / "kb.ann"
+        else:
+            # If kb is a file, use it directly
+            pack_path = kb
+            ann_path = kb.with_suffix('.ann')
         
         if not pack_path.exists() or not ann_path.exists():
-            console.print(f"[red]Error: Knowledge pack not found in {kb}[/red]")
+            console.print(f"[red]Error: Knowledge pack not found: {pack_path} or {ann_path}[/red]")
             raise typer.Exit(1)
         
         # Create retriever
@@ -296,11 +312,16 @@ def export(
     
     try:
         # Set up paths
-        pack_path = kb / "kb.mpack"
-        ann_path = kb / "kb.ann"
+        if kb.is_dir():
+            pack_path = kb / "kb.mpack"
+            ann_path = kb / "kb.ann"
+        else:
+            # If kb is a file, use it directly
+            pack_path = kb
+            ann_path = kb.with_suffix('.ann')
         
         if not pack_path.exists() or not ann_path.exists():
-            console.print(f"[red]Error: Knowledge pack not found in {kb}[/red]")
+            console.print(f"[red]Error: Knowledge pack not found: {pack_path} or {ann_path}[/red]")
             raise typer.Exit(1)
         
         # Create retriever
@@ -340,6 +361,84 @@ def export(
             
             console.print(f"[green]✓ Exported {len(chunks)} chunks to {output}[/green]")
             
+    except MemPackError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]Unexpected error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def chat(
+    kb: Path = typer.Option(..., "--kb", "-k", help="Knowledge pack directory"),
+    query: str = typer.Option(..., "--query", "-q", help="Chat query"),
+    context_chunks: int = typer.Option(8, "--context-chunks", help="Number of chunks to use as context"),
+    max_context_length: int = typer.Option(2000, "--max-context", help="Maximum context length in characters"),
+    ef_search: int = typer.Option(64, "--ef-search", help="HNSW ef_search parameter"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Chat with a MemPack knowledge pack using context retrieval."""
+    setup_logging(verbose)
+    
+    try:
+        # Find .mpack and .ann files
+        if kb.is_dir():
+            mpack_file = kb / f"{kb.name}.mpack"
+            ann_file = kb / f"{kb.name}.ann"
+        else:
+            # If kb is a file, use it directly
+            mpack_file = kb
+            ann_file = kb.with_suffix('.ann')
+        
+        if not mpack_file.exists():
+            console.print(f"[red]Error: MemPack file not found: {mpack_file}[/red]")
+            raise typer.Exit(1)
+        
+        if not ann_file.exists():
+            console.print(f"[red]Error: ANN file not found: {ann_file}[/red]")
+            raise typer.Exit(1)
+        
+        # Initialize retriever
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Loading knowledge pack...", total=None)
+            
+            retriever = MemPackRetriever(
+                pack_path=mpack_file,
+                ann_path=ann_file,
+                ef_search=ef_search,
+            )
+            
+            # Initialize chat interface
+            chat = MemPackChat(
+                retriever=retriever,
+                context_chunks=context_chunks,
+                max_context_length=max_context_length,
+            )
+            
+            progress.update(task, description="Processing query...")
+            
+            # Get response
+            response = chat.chat(query)
+            
+            progress.update(task, description="Complete!")
+        
+        # Display response
+        console.print(f"\n[bold blue]Query:[/bold blue] {query}")
+        console.print(f"[bold green]Response:[/bold green] {response}")
+        
+        # Show context sources if verbose
+        if verbose:
+            # Get the context from the last search
+            hits = chat.retriever.search(query, top_k=context_chunks)
+            console.print(f"\n[bold yellow]Context sources ({len(hits)} chunks):[/bold yellow]")
+            for i, hit in enumerate(hits, 1):
+                console.print(f"  {i}. [dim]ID {hit.id} (score: {hit.score:.3f})[/dim]: {hit.text[:100]}...")
+        
     except MemPackError as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
