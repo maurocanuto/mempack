@@ -247,8 +247,11 @@ MIT License - see LICENSE file for details.
 
 ## Roadmap
 
+- [ ] **Multiple Packs**: Create separate packs for different content and search across them
+- [ ] **Incremental Updates**: Support for adding new content to existing packs without full rebuild
 - [ ] IVF-PQ backend for ultra-large corpora
 - [ ] Quantized vectors (int8) support
 - [ ] Streaming append API
 - [ ] HTTP server for remote access
 - [ ] More embedding backends (OpenAI, Vertex AI)
+
