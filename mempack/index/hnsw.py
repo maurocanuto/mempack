@@ -294,9 +294,6 @@ class HNSWIndex:
             # Set ef_search parameter
             self._index.set_ef(self.ef_search)
             
-            print(f"[DEBUG HNSW] Index loaded successfully")
-            print(f"[DEBUG HNSW] Index element count: {self._index.get_current_count()}")
-            print(f"[DEBUG HNSW] Index max elements: {self._index.get_max_elements()}")
             
             # Rebuild ID mappings (this is a limitation of hnswlib)
             # Since hnswlib doesn't save ID mappings, we need to reconstruct them
@@ -306,7 +303,6 @@ class HNSWIndex:
                 # Reconstruct the mappings assuming labels 0..n-1 map to IDs 0..n-1
                 self._label_to_id = {i: i for i in range(element_count)}
                 self._id_to_label = {i: i for i in range(element_count)}
-                print(f"[DEBUG HNSW] Reconstructed ID mappings for {element_count} elements")
             
             self._is_built = True
             

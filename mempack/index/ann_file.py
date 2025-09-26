@@ -169,8 +169,6 @@ class ANNFile:
         # Extract HNSW parameters
         params = self._unpack_params(self._header.params)
         
-        print(f"[DEBUG ANN] Creating HNSW index with params: {params}")
-        print(f"[DEBUG ANN] Dimensions: {self._header.dimensions}, max_elements: {self._header.vector_count}")
         
         self._index = HNSWIndex(
             dimensions=self._header.dimensions,

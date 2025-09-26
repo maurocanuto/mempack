@@ -209,8 +209,6 @@ class MemPackReader:
             self._file.seek(offset)
             toc_data = self._file.read(length)
         
-        print(f"[DEBUG READER] TOC section offset: {self._header.section_offsets.toc_offset}, length: {self._header.section_offsets.toc_length}")
-        print(f"[DEBUG READER] TOC data first 50 bytes: {toc_data[:50]}")
         
         try:
             self._toc = TableOfContents.deserialize(toc_data)

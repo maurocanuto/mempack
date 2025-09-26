@@ -142,6 +142,13 @@ class MemPackWriter:
         if current_block:
             self._finalize_block(current_block, current_chunks, block_id)
     
+    def _update_block_offsets(self) -> None:
+        """Update block offsets to reflect their position in the blocks section."""
+        offset = 0
+        for block_info in self.toc.blocks:
+            block_info.offset = offset
+            offset += block_info.compressed_size
+    
     def _finalize_block(
         self,
         block_data: bytes,
@@ -289,6 +296,9 @@ class MemPackWriter:
             # Create blocks from chunks
             self._create_blocks()
             
+            # Update block offsets
+            self._update_block_offsets()
+            
             # Write sections
             config_data = self._write_config()
             toc_data = self._write_toc()
@@ -373,19 +383,13 @@ class MemPackWriter:
             try:
                 import cbor2
                 toc_decoded = cbor2.loads(toc_data)
-                print(f"[DEBUG] TOC decoded successfully: {type(toc_decoded)}")
                 if isinstance(toc_decoded, dict) and 'chunks' in toc_decoded:
-                    print(f"[DEBUG] TOC has {len(toc_decoded['chunks'])} chunks")
+                    pass
                 else:
                     print(f"[ERROR] TOC decode error: unexpected structure {toc_decoded}")
             except Exception as e:
                 print(f"[ERROR] TOC decode error: {e}")
                 
-            print(f"[DEBUG] File data lengths: header={len(header.pack())}, config={len(config_data)}, toc={len(toc_data)}, blocks={len(blocks_data)}")
-            print(f"[DEBUG] TOC data first 50 bytes: {toc_data[:50]}")
-            print(f"[DEBUG] Blocks data first 50 bytes: {blocks_data[:50]}")
-            print(f"[DEBUG] Total file data length: {len(file_data)}")
-            print(f"[DEBUG] File data first 100 bytes: {file_data[:100]}")
             
             # Atomic write
             atomic_write(self.pack_path, file_data)
@@ -393,8 +397,6 @@ class MemPackWriter:
             # Verify what was actually written
             with open(self.pack_path, 'rb') as f:
                 written_data = f.read()
-                print(f"[DEBUG] Written file length: {len(written_data)}")
-                print(f"[DEBUG] Written file first 100 bytes: {written_data[:100]}")
             
             pack_logger.info(f"MemPack file written: {self.pack_path}")
             pack_logger.info(f"Total size: {len(file_data)} bytes")

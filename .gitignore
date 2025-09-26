@@ -244,6 +244,7 @@ $RECYCLE.BIN/
 test_data/
 temp/
 tmp/
+test_index.bin
 
 # Benchmark results
 benchmark_results/

@@ -103,6 +103,7 @@ def test_build_from_directory(temp_dir):
     # Create configuration
     config = MemPackConfig()
     config.chunking.chunk_size = 50
+    config.chunking.chunk_overlap = 10
     config.embedding.model = "all-MiniLM-L6-v2"
     
     # Set paths

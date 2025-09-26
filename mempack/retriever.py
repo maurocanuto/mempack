@@ -404,7 +404,8 @@ class MemPackRetriever:
             
             # Verify ANN file
             ann_stats = self.ann_file.get_stats()
-            if ann_stats["vector_count"] != len(self.hnsw_index):
+            vector_count = ann_stats.get("vector_count", ann_stats.get("current_elements", 0))
+            if vector_count != len(self.hnsw_index):
                 return False
             
             return True
