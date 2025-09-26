@@ -24,6 +24,45 @@ This separation ensures that data remains portable, compact, and deterministic, 
 - **Integrity**: Built-in checksums and optional ECC error correction
 - **Memory efficient**: Memory-mappable index with block caching
 
+
+## Comparison: MemPack vs Vector Stores
+
+| Feature | MemPack | Traditional Vector Stores |
+|---------|---------|---------------------------|
+| **Deployment** | Two files (.mpack + .ann) | Database server + infrastructure |
+| **Dependencies** | None (pure Python) | Database, network, API keys |
+| **Offline Support** | ✅ Full offline capability | ❌ Requires network connectivity |
+| **Cold Start** | ⚡ Milliseconds (memory-mapped) | 🐌 Minutes (load all vectors) |
+| **Memory Usage** | 💾 Efficient (block caching) | 🔥 High (load entire dataset) |
+| **Data Integrity** | ✅ Built-in checksums + ECC | ❌ Opaque, no verification |
+| **Version Control** | ✅ Git-friendly, diffable | ❌ No version tracking |
+| **Portability** | 🌍 Universal file format | 🔒 Vendor lock-in |
+| **Cost Model** | 💰 One-time build, unlimited queries | 💸 Per-query or per-vector pricing |
+| **Setup Complexity** | 🚀 `pip install` + 2 files | 🏗️ Infrastructure, config, scaling |
+| **Edge Computing** | ✅ Runs on any device | ❌ Requires cloud connectivity |
+| **Data Recovery** | ✅ Transparent format, ECC repair | ❌ Black box, no recovery |
+| **Collaboration** | ✅ Share files, track changes | ❌ Complex multi-user setup |
+| **Debugging** | 🔍 Inspect files, built-in tools | 🐛 Opaque APIs, limited visibility |
+| **Resource Requirements** | 📱 Minimal (Raspberry Pi ready) | 🖥️ High (dedicated servers) |
+| **Deterministic** | ✅ Reproducible builds | ❌ Non-deterministic indexing |
+
+### When to Choose MemPack
+- ✅ Offline-first applications
+- ✅ Edge computing and IoT
+- ✅ Cost-sensitive high-volume queries
+- ✅ Data integrity is critical
+- ✅ Version control and collaboration
+- ✅ Simple deployment requirements
+- ✅ Resource-constrained environments
+
+### When to Choose Vector Stores
+- ✅ Real-time updates to knowledge base
+- ✅ Multi-tenant SaaS applications
+- ✅ Complex filtering and metadata queries
+- ✅ Integration with existing database infrastructure
+- ✅ Need for advanced vector operations (clustering, etc.)
+
+
 ## Use Cases: Why MemPack Beats Vector Stores
 
 ### 🚀 **Offline-First Knowledge Management**
