@@ -6,6 +6,14 @@ A portable, fast knowledge pack with two-file ANN memory for semantic search and
 
 MemPack is a Python library that packages text chunks + metadata + integrity info into **one container file** (`.mpack`) and a **separate ANN index** (`.ann`). It's designed for portability, deterministic random access, fast semantic retrieval, and clean APIs.
 
+At its heart, mempack is a knowledge container that works like a hybrid between a structured archive and a vector database:
+
+- Container file **(.mpack)** – Holds compressed text chunks, metadata, and integrity checks.
+
+- Index file **(.ann)** – Stores a memory-mappable Approximate Nearest Neighbor (ANN) index (e.g., HNSW) for fast retrieval.
+
+This separation ensures that data remains portable, compact, and deterministic, while the index is directly mmap-able for lightning-fast loading and search.
+
 ### Why MemPack?
 
 - **Two-file format**: Clean separation of data (`.mpack`) and index (`.ann`)

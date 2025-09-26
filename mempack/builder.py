@@ -175,7 +175,15 @@ class MemPackEncoder:
         
         # Find matching files
         import glob
-        files = glob.glob(str(dir_path / pattern))
+        if '{' in pattern and '}' in pattern:
+            # Handle brace expansion patterns like *.{md,txt}
+            start, rest = pattern.split('{', 1)
+            extensions, end = rest.split('}', 1)
+            files = []
+            for ext in extensions.split(','):
+                files.extend(glob.glob(str(dir_path / (start + ext + end))))
+        else:
+            files = glob.glob(str(dir_path / pattern))
         
         builder_logger.info(f"Found {len(files)} files in {dir_path}")
         
@@ -351,7 +359,7 @@ class MemPackEncoder:
         ann_file.write(
             index=self.hnsw_index,
             algorithm="hnsw",
-            params=self.config.index.hnsw.dict(),
+            params=self.config.index.hnsw.model_dump(),
         )
         
         builder_logger.info("ANN file written")

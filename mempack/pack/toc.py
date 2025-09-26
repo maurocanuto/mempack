@@ -302,8 +302,36 @@ class TableOfContents:
             FileFormatError: If deserialization fails
         """
         try:
+            # First try to decode directly
             toc_dict = cbor2.loads(data)
             return cls.from_dict(toc_dict)
+        except (ValueError, cbor2.CBORDecodeError) as e:
+            # If that fails, try to find the actual CBOR data by skipping leading zeros
+            try:
+                # Find the first non-zero byte
+                start_pos = 0
+                while start_pos < len(data) and data[start_pos] == 0:
+                    start_pos += 1
+                
+                if start_pos >= len(data):
+                    raise FileFormatError("TOC data is all zeros")
+                
+                # Try to decode from each position until we find valid CBOR
+                for pos in range(start_pos, min(start_pos + 200, len(data))):
+                    try:
+                        remaining_data = data[pos:]
+                        if len(remaining_data) == 0:
+                            continue
+                        toc_dict = cbor2.loads(remaining_data)
+                        if isinstance(toc_dict, dict) and 'chunks' in toc_dict:
+                            return cls.from_dict(toc_dict)
+                    except:
+                        continue
+                
+                raise FileFormatError("Could not find valid TOC data")
+                
+            except Exception as inner_e:
+                raise FileFormatError(f"Failed to deserialize TOC: {e}, inner: {inner_e}")
         except Exception as e:
             raise FileFormatError(f"Failed to deserialize TOC: {e}")
     

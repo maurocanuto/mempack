@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class EmbeddingConfig(BaseModel):
@@ -12,6 +12,9 @@ class EmbeddingConfig(BaseModel):
     
     model: str = "all-MiniLM-L6-v2"
     """Embedding model identifier."""
+    
+    dimensions: int = Field(default=384, ge=1, le=4096)
+    """Embedding dimensions."""
     
     batch_size: int = Field(default=64, ge=1, le=1024)
     """Batch size for embedding generation."""
@@ -25,7 +28,8 @@ class EmbeddingConfig(BaseModel):
     device: Optional[str] = None
     """Device to use (cpu, cuda, auto)."""
     
-    @validator('device')
+    @field_validator('device')
+    @classmethod
     def validate_device(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and v not in ['cpu', 'cuda', 'auto']:
             raise ValueError("Device must be 'cpu', 'cuda', or 'auto'")
@@ -50,18 +54,20 @@ class ChunkingConfig(BaseModel):
     sentence_endings: List[str] = Field(default_factory=lambda: ['.', '!', '?', '\n\n'])
     """Characters that indicate sentence endings."""
     
-    @validator('chunk_overlap')
-    def validate_overlap(cls, v: int, values: Dict[str, Any]) -> int:
-        chunk_size = values.get('chunk_size', 300)
-        if v >= chunk_size:
-            raise ValueError("chunk_overlap must be less than chunk_size")
+    @field_validator('chunk_overlap')
+    @classmethod
+    def validate_overlap(cls, v: int, info) -> int:
+        if hasattr(info, 'data'):
+            chunk_size = info.data.get('chunk_size', 300)
+            if v >= chunk_size:
+                raise ValueError("chunk_overlap must be less than chunk_size")
         return v
 
 
 class CompressionConfig(BaseModel):
     """Configuration for compression."""
     
-    algorithm: str = Field(default="zstd", regex="^(zstd|deflate|none)$")
+    algorithm: str = Field(default="zstd", pattern="^(zstd|deflate|none)$")
     """Compression algorithm."""
     
     level: int = Field(default=3, ge=1, le=22)
@@ -70,13 +76,15 @@ class CompressionConfig(BaseModel):
     threads: int = Field(default=0, ge=0, le=32)
     """Number of threads for compression (0=auto)."""
     
-    @validator('level')
-    def validate_level(cls, v: int, values: Dict[str, Any]) -> int:
-        algorithm = values.get('algorithm', 'zstd')
-        if algorithm == 'zstd' and v > 22:
-            raise ValueError("zstd compression level must be <= 22")
-        elif algorithm == 'deflate' and v > 9:
-            raise ValueError("deflate compression level must be <= 9")
+    @field_validator('level')
+    @classmethod
+    def validate_level(cls, v: int, info) -> int:
+        if hasattr(info, 'data'):
+            algorithm = info.data.get('algorithm', 'zstd')
+            if algorithm == 'zstd' and v > 22:
+                raise ValueError("zstd compression level must be <= 22")
+            elif algorithm == 'deflate' and v > 9:
+                raise ValueError("deflate compression level must be <= 9")
         return v
 
 
@@ -98,11 +106,13 @@ class HNSWConfig(BaseModel):
     allow_replace_deleted: bool = True
     """Whether to allow replacing deleted elements."""
     
-    @validator('ef_search')
-    def validate_ef_search(cls, v: int, values: Dict[str, Any]) -> int:
-        ef_construction = values.get('ef_construction', 200)
-        if v > ef_construction:
-            raise ValueError("ef_search should not exceed ef_construction")
+    @field_validator('ef_search')
+    @classmethod
+    def validate_ef_search(cls, v: int, info) -> int:
+        if hasattr(info, 'data'):
+            ef_construction = info.data.get('ef_construction', 200)
+            if v > ef_construction:
+                raise ValueError("ef_search should not exceed ef_construction")
         return v
 
 
@@ -121,32 +131,32 @@ class ECCConfig(BaseModel):
     block_size: int = Field(default=4096, ge=512, le=65536)
     """ECC block size in bytes."""
     
-    @validator('m')
-    def validate_m(cls, v: int, values: Dict[str, Any]) -> int:
-        k = values.get('k', 10)
-        if v > k:
-            raise ValueError("Number of parity blocks (m) should not exceed data blocks (k)")
+    @field_validator('m')
+    @classmethod
+    def validate_m(cls, v: int, info) -> int:
+        if hasattr(info, 'data'):
+            k = info.data.get('k', 10)
+            if v > k:
+                raise ValueError("Number of parity blocks (m) should not exceed data blocks (k)")
         return v
 
 
 class IndexConfig(BaseModel):
     """Configuration for ANN index."""
     
-    type: str = Field(default="hnsw", regex="^(hnsw|ivfpq)$")
+    type: str = Field(default="hnsw", pattern="^(hnsw|ivfpq)$")
     """Index type."""
     
     dimensions: int = Field(default=384, ge=1, le=4096)
     """Vector dimensions."""
     
-    hnsw: Optional[HNSWConfig] = None
+    hnsw: Optional[HNSWConfig] = Field(default=None)
     """HNSW-specific configuration."""
     
-    @validator('hnsw')
-    def validate_hnsw(cls, v: Optional[HNSWConfig], values: Dict[str, Any]) -> Optional[HNSWConfig]:
-        index_type = values.get('type', 'hnsw')
-        if index_type == 'hnsw' and v is None:
-            return HNSWConfig()
-        return v
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.type == 'hnsw' and self.hnsw is None:
+            self.hnsw = HNSWConfig()
 
 
 class RetrieverConfig(BaseModel):
@@ -212,7 +222,8 @@ class MemPackConfig(BaseModel):
     ann_path: Optional[str] = None
     """Path to the .ann file."""
     
-    @validator('workers')
+    @field_validator('workers')
+    @classmethod
     def validate_workers(cls, v: int) -> int:
         if v == 0:
             import os

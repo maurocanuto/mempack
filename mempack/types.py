@@ -208,6 +208,9 @@ class HNSWParams:
     
     max_elements: int = 0
     """Maximum number of elements (0 = auto)."""
+    
+    allow_replace_deleted: bool = True
+    """Whether to allow replacing deleted elements."""
 
 
 @dataclass

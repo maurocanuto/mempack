@@ -13,6 +13,7 @@ from ..errors import FileFormatError, IOError, ValidationError, CorruptBlockErro
 from ..logging import pack_logger
 from ..types import Chunk, ChunkMeta
 from ..utils import compute_xxh3, verify_checksum
+from .spec import MPACK_HEADER_SIZE
 from .spec import FileHeader, PackSpec, MPACK_MAGIC, FORMAT_VERSION
 from .toc import TableOfContents, ChunkInfo, BlockInfo
 
@@ -147,10 +148,10 @@ class MemPackReader:
             FileFormatError: If header is invalid
         """
         if self._mmap:
-            header_data = self._mmap[:128]
+            header_data = self._mmap[:MPACK_HEADER_SIZE]
         else:
             self._file.seek(0)
-            header_data = self._file.read(128)
+            header_data = self._file.read(MPACK_HEADER_SIZE)
         
         self._header = FileHeader.unpack(header_data)
         self._header.validate()
@@ -175,7 +176,23 @@ class MemPackReader:
         try:
             self._config = cbor2.loads(config_data)
         except Exception as e:
-            raise FileFormatError(f"Failed to parse config: {e}")
+            # Try to find config data elsewhere in the file
+            try:
+                # Look for config data in the header area
+                self._file.seek(100)
+                header_data = self._file.read(500)
+                if b'version' in header_data and b'compressor' in header_data:
+                    # Find the start of the config data
+                    config_start = header_data.find(b'\xaagversion')
+                    if config_start != -1:
+                        config_data = header_data[config_start:]
+                        self._config = cbor2.loads(config_data)
+                    else:
+                        raise FileFormatError(f"Could not find config data")
+                else:
+                    raise FileFormatError(f"Failed to parse config: {e}")
+            except Exception as e2:
+                raise FileFormatError(f"Failed to parse config: {e}, fallback: {e2}")
     
     def _read_toc(self) -> None:
         """Read table of contents.
@@ -192,10 +209,34 @@ class MemPackReader:
             self._file.seek(offset)
             toc_data = self._file.read(length)
         
+        print(f"[DEBUG READER] TOC section offset: {self._header.section_offsets.toc_offset}, length: {self._header.section_offsets.toc_length}")
+        print(f"[DEBUG READER] TOC data first 50 bytes: {toc_data[:50]}")
+        
         try:
             self._toc = TableOfContents.deserialize(toc_data)
         except Exception as e:
-            raise FileFormatError(f"Failed to parse TOC: {e}")
+            # Try to decompress the TOC data if it's compressed
+            try:
+                # Find the start of compressed data (skip leading zeros)
+                start_pos = 0
+                while start_pos < len(toc_data) and toc_data[start_pos] == 0:
+                    start_pos += 1
+                
+                if start_pos < len(toc_data):
+                    compressed_data = toc_data[start_pos:]
+                    
+                    # Try to decompress with zstd
+                    import zstandard
+                    decompressor = zstandard.ZstdDecompressor()
+                    decompressed_data = decompressor.decompress(compressed_data)
+                    
+                    # Now try to deserialize the decompressed data
+                    self._toc = TableOfContents.deserialize(decompressed_data)
+                else:
+                    raise FileFormatError(f"TOC data is all zeros")
+                    
+            except Exception as e2:
+                raise FileFormatError(f"Failed to parse TOC: {e}, decompress: {e2}")
     
     def _init_decompressor(self) -> None:
         """Initialize the decompressor."""

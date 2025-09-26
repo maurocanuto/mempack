@@ -79,8 +79,10 @@ def main():
     config.chunking.chunk_size = 200
     config.chunking.chunk_overlap = 50
     config.embedding.model = "all-MiniLM-L6-v2"
-    config.index.hnsw.M = 16
-    config.index.hnsw.ef_construction = 100
+    # The hnsw config will be automatically initialized by the validator
+    if config.index.hnsw is not None:
+        config.index.hnsw.M = 16
+        config.index.hnsw.ef_construction = 100
     
     # Create encoder
     encoder = MemPackEncoder(config=config)

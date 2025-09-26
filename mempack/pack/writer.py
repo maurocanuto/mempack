@@ -223,9 +223,9 @@ class MemPackWriter:
             "embedding_model": self.config.embedding.model,
             "embedding_dim": self.config.embedding.dimensions,
             "index_type": self.config.index.type,
-            "index_params": self.config.index.hnsw.dict() if self.config.index.hnsw else {},
+            "index_params": self.config.index.hnsw.model_dump() if self.config.index.hnsw else {},
             "ecc_enabled": self.config.ecc.enabled,
-            "ecc_params": self.config.ecc.dict() if self.config.ecc.enabled else None,
+            "ecc_params": self.config.ecc.model_dump() if self.config.ecc.enabled else None,
         }
         
         return cbor2.dumps(config_data)
@@ -297,33 +297,40 @@ class MemPackWriter:
             tags_index_data = self._write_tags_index()
             ecc_data = self._write_ecc()
             
-            # Calculate section offsets
+            # Calculate section offsets with alignment
             offset = PackSpec.align_offset(MPACK_HEADER_SIZE)
             
-            section_offsets = SectionOffsets(
-                config_offset=offset,
-                config_length=len(config_data),
-            )
+            config_offset = offset
             offset = PackSpec.align_offset(offset + len(config_data))
             
-            section_offsets.toc_offset = offset
-            section_offsets.toc_length = len(toc_data)
+            toc_offset = offset
             offset = PackSpec.align_offset(offset + len(toc_data))
             
-            section_offsets.blocks_offset = offset
-            section_offsets.blocks_length = len(blocks_data)
+            blocks_offset = offset
             offset = PackSpec.align_offset(offset + len(blocks_data))
             
-            section_offsets.checksums_offset = offset
-            section_offsets.checksums_length = len(checksums_data)
+            checksums_offset = offset
             offset = PackSpec.align_offset(offset + len(checksums_data))
             
-            section_offsets.tags_index_offset = offset
-            section_offsets.tags_index_length = len(tags_index_data)
+            tags_index_offset = offset
             offset = PackSpec.align_offset(offset + len(tags_index_data))
             
-            section_offsets.ecc_offset = offset
-            section_offsets.ecc_length = len(ecc_data)
+            ecc_offset = offset
+            
+            section_offsets = SectionOffsets(
+                config_offset=config_offset,
+                config_length=len(config_data),
+                toc_offset=toc_offset,
+                toc_length=len(toc_data),
+                blocks_offset=blocks_offset,
+                blocks_length=len(blocks_data),
+                checksums_offset=checksums_offset,
+                checksums_length=len(checksums_data),
+                tags_index_offset=tags_index_offset,
+                tags_index_length=len(tags_index_data),
+                ecc_offset=ecc_offset,
+                ecc_length=len(ecc_data),
+            )
             
             # Create header
             flags = PackSpec.get_compressor_flag(self.config.compression.algorithm)
@@ -338,24 +345,56 @@ class MemPackWriter:
                 section_offsets=section_offsets,
             )
             
-            # Write file
+            # Write file data with proper alignment and padding
             file_data = (
                 header.pack() +
+                b'\x00' * (config_offset - MPACK_HEADER_SIZE) +
                 config_data +
-                b'\x00' * (section_offsets.toc_offset - section_offsets.config_offset - len(config_data)) +
+                b'\x00' * (toc_offset - config_offset - len(config_data)) +
                 toc_data +
-                b'\x00' * (section_offsets.blocks_offset - section_offsets.toc_offset - len(toc_data)) +
+                b'\x00' * (blocks_offset - toc_offset - len(toc_data)) +
                 blocks_data +
-                b'\x00' * (section_offsets.checksums_offset - section_offsets.blocks_offset - len(blocks_data)) +
+                b'\x00' * (checksums_offset - blocks_offset - len(blocks_data)) +
                 checksums_data +
-                b'\x00' * (section_offsets.tags_index_offset - section_offsets.checksums_offset - len(checksums_data)) +
+                b'\x00' * (tags_index_offset - checksums_offset - len(checksums_data)) +
                 tags_index_data +
-                b'\x00' * (section_offsets.ecc_offset - section_offsets.tags_index_offset - len(tags_index_data)) +
+                b'\x00' * (ecc_offset - tags_index_offset - len(tags_index_data)) +
                 ecc_data
             )
             
+            # File data is already constructed above
+            
+            # Debug: verify the data is being written correctly
+            pack_logger.debug(f"File data lengths: header={len(header.pack())}, config={len(config_data)}, toc={len(toc_data)}, blocks={len(blocks_data)}")
+            pack_logger.debug(f"TOC data first 50 bytes: {toc_data[:50]}")
+            pack_logger.debug(f"Blocks data first 50 bytes: {blocks_data[:50]}")
+            
+            # Verify TOC data is CBOR
+            try:
+                import cbor2
+                toc_decoded = cbor2.loads(toc_data)
+                print(f"[DEBUG] TOC decoded successfully: {type(toc_decoded)}")
+                if isinstance(toc_decoded, dict) and 'chunks' in toc_decoded:
+                    print(f"[DEBUG] TOC has {len(toc_decoded['chunks'])} chunks")
+                else:
+                    print(f"[ERROR] TOC decode error: unexpected structure {toc_decoded}")
+            except Exception as e:
+                print(f"[ERROR] TOC decode error: {e}")
+                
+            print(f"[DEBUG] File data lengths: header={len(header.pack())}, config={len(config_data)}, toc={len(toc_data)}, blocks={len(blocks_data)}")
+            print(f"[DEBUG] TOC data first 50 bytes: {toc_data[:50]}")
+            print(f"[DEBUG] Blocks data first 50 bytes: {blocks_data[:50]}")
+            print(f"[DEBUG] Total file data length: {len(file_data)}")
+            print(f"[DEBUG] File data first 100 bytes: {file_data[:100]}")
+            
             # Atomic write
             atomic_write(self.pack_path, file_data)
+            
+            # Verify what was actually written
+            with open(self.pack_path, 'rb') as f:
+                written_data = f.read()
+                print(f"[DEBUG] Written file length: {len(written_data)}")
+                print(f"[DEBUG] Written file first 100 bytes: {written_data[:100]}")
             
             pack_logger.info(f"MemPack file written: {self.pack_path}")
             pack_logger.info(f"Total size: {len(file_data)} bytes")

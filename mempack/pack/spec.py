@@ -15,8 +15,8 @@ ANN_MAGIC = b"MPANN\0"
 FORMAT_VERSION = 1
 
 # Header sizes
-MPACK_HEADER_SIZE = 128
-ANN_HEADER_SIZE = 64
+MPACK_HEADER_SIZE = 174
+ANN_HEADER_SIZE = 66
 
 # Section alignment
 SECTION_ALIGNMENT = 4096
@@ -101,7 +101,7 @@ class FileHeader:
             self.section_offsets.tags_index_length,
             self.section_offsets.ecc_offset,
             self.section_offsets.ecc_length,
-            0, 0, 0, 0, 0, 0  # Reserved padding
+            0, 0, 0, 0, 0, 0, 0, 0  # Reserved padding
         )
         
         # Pad to header size
@@ -215,6 +215,7 @@ class ANNHeader:
             self.dimensions,
             self.vector_count,
             self.id_width,
+            0,  # Reserved padding
             self.params,
         )
         
@@ -249,7 +250,7 @@ class ANNHeader:
             dimensions=fields[3],
             vector_count=fields[4],
             id_width=fields[5],
-            params=fields[6],
+            params=fields[7],  # params is the 8th field (index 7)
         )
     
     def validate(self) -> None:

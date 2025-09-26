@@ -114,7 +114,7 @@ def test_count_tokens():
     
     # Word count
     word_count = count_tokens(text, "word")
-    assert word_count == 7  # "Hello,", "World!", "This", "is", "a", "test."
+    assert word_count == 6  # "Hello,", "World!", "This", "is", "a", "test."
     
     # Sentence count
     sentence_count = count_tokens(text, "sentence")

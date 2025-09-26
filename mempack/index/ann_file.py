@@ -15,7 +15,7 @@ from ..errors import FileFormatError, IOError, IndexError
 from ..logging import index_logger
 from ..types import HNSWParams
 from .hnsw import HNSWIndex
-from ..pack.spec import ANNHeader, ANN_MAGIC, FORMAT_VERSION
+from ..pack.spec import ANNHeader, ANN_MAGIC, FORMAT_VERSION, ANN_HEADER_SIZE
 
 
 class ANNFile:
@@ -145,10 +145,10 @@ class ANNFile:
             FileFormatError: If header is invalid
         """
         if self._mmap:
-            header_data = self._mmap[:64]
+            header_data = self._mmap[:ANN_HEADER_SIZE]
         else:
             self._file.seek(0)
-            header_data = self._file.read(64)
+            header_data = self._file.read(ANN_HEADER_SIZE)
         
         self._header = ANNHeader.unpack(header_data)
         self._header.validate()
@@ -169,6 +169,9 @@ class ANNFile:
         # Extract HNSW parameters
         params = self._unpack_params(self._header.params)
         
+        print(f"[DEBUG ANN] Creating HNSW index with params: {params}")
+        print(f"[DEBUG ANN] Dimensions: {self._header.dimensions}, max_elements: {self._header.vector_count}")
+        
         self._index = HNSWIndex(
             dimensions=self._header.dimensions,
             max_elements=self._header.vector_count,
@@ -185,7 +188,7 @@ class ANNFile:
             IOError: If loading fails
         """
         # Read index data (skip header)
-        offset = 64  # Header size
+        offset = ANN_HEADER_SIZE
         
         if self._mmap:
             index_data = self._mmap[offset:]
