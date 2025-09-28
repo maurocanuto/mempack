@@ -7,14 +7,13 @@ name = "mempack"
 version = "0.1.0"
 description = "A portable, fast knowledge pack with two-file ANN memory"
 readme = "README.md"
-license = {text = "MIT"}
+license = "Apache-2.0"
 authors = [
     {name = "Mauro Canuto"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
