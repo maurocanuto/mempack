@@ -2,6 +2,8 @@
 
 ![MemPack Logo](assets/logo.png)
 
+MemPack transforms AI memory by compressing knowledge into a portable two-file format, delivering blazing-fast semantic search and sub-second access across millions of text chunks.
+
 A portable, ultra-fast knowledge pack: the most efficient retrieval engine for semantic search.
 
 ## Overview
