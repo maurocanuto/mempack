@@ -123,10 +123,16 @@ pip install mempack
 ### Basic Usage
 
 ```python
-from mempack import MemPackEncoder, MemPackRetriever
+from mempack import MemPackEncoder, MemPackRetriever, MemPackConfig, EmbeddingConfig, ChunkingConfig
+
+# Configure the encoder
+config = MemPackConfig(
+    embedding=EmbeddingConfig(model="all-MiniLM-L6-v2"), 
+    chunking=ChunkingConfig(chunk_size=300, chunk_overlap=50)
+)
+encoder = MemPackEncoder(config=config)
 
 # Build a knowledge pack (takes seconds, not minutes)
-encoder = MemPackEncoder(chunk_size=300, chunk_overlap=50)
 encoder.add_text("# Introduction\nQuantum computers use qubits...", 
                  meta={"source": "notes/quantum.md"})
 encoder.build(pack_path="kb.mpack", ann_path="kb.ann")
